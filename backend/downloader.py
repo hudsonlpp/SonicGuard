@@ -1,0 +1,121 @@
+"""
+downloader.py — Módulo de download e carregamento de áudio.
+
+Responsável por:
+  - Baixar áudio de URLs do YouTube via yt-dlp
+  - Carregar arquivos de áudio locais
+  - Normalizar todo áudio para sr=22050, mono=True
+  - Liberar memória agressivamente após cada operação
+"""
+
+import gc
+import os
+import tempfile
+from pathlib import Path
+from typing import Tuple
+
+import librosa
+import numpy as np
+
+
+# ── Constantes ──────────────────────────────────────────────────────────────
+SAMPLE_RATE = 22050  # Taxa de amostragem padrão (leve e suficiente para análise tonal)
+MONO = True          # Sempre mono para reduzir uso de RAM
+
+
+def _is_youtube_url(source: str) -> bool:
+    """Verifica se a string é uma URL do YouTube."""
+    yt_domains = ("youtube.com", "youtu.be", "www.youtube.com", "m.youtube.com")
+    return any(domain in source for domain in yt_domains)
+
+
+def _download_from_youtube(url: str, output_dir: str) -> str:
+    """
+    Baixa o áudio de uma URL do YouTube usando yt-dlp.
+
+    Retorna o caminho do arquivo WAV baixado.
+    Levanta RuntimeError se o download falhar.
+    """
+    try:
+        import yt_dlp
+    except ImportError:
+        raise ImportError(
+            "yt-dlp não está instalado. Instale com: pip install yt-dlp"
+        )
+
+    output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
+
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": output_template,
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "wav",
+                "preferredquality": "192",
+            }
+        ],
+        "quiet": True,
+        "no_warnings": True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        video_id = info.get("id", "audio")
+
+    wav_path = os.path.join(output_dir, f"{video_id}.wav")
+
+    if not os.path.exists(wav_path):
+        # yt-dlp pode gerar com extensão diferente; procurar pelo ID
+        for f in os.listdir(output_dir):
+            if f.startswith(video_id):
+                wav_path = os.path.join(output_dir, f)
+                break
+
+    if not os.path.exists(wav_path):
+        raise RuntimeError(f"Falha no download. Arquivo não encontrado para: {url}")
+
+    return wav_path
+
+
+def load_audio(source: str) -> Tuple[np.ndarray, int]:
+    """
+    Carrega áudio de um arquivo local ou URL do YouTube.
+
+    Parâmetros:
+        source: Caminho de arquivo local ou URL do YouTube.
+
+    Retorna:
+        Tupla (signal, sample_rate) onde signal é np.ndarray mono float32
+        e sample_rate é sempre 22050.
+
+    Levanta:
+        FileNotFoundError: se o arquivo local não existir.
+        RuntimeError: se o download do YouTube falhar.
+    """
+    temp_dir = None
+
+    try:
+        if _is_youtube_url(source):
+            temp_dir = tempfile.mkdtemp(prefix="sonicguard_")
+            audio_path = _download_from_youtube(source, temp_dir)
+        else:
+            audio_path = str(Path(source).resolve())
+            if not os.path.exists(audio_path):
+                raise FileNotFoundError(f"Arquivo não encontrado: {audio_path}")
+
+        # Carregar com librosa — sr=22050, mono=True (regra rígida)
+        signal, sr = librosa.load(audio_path, sr=SAMPLE_RATE, mono=MONO)
+
+        return signal, sr
+
+    finally:
+        # Limpar arquivos temporários do YouTube
+        if temp_dir is not None:
+            try:
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except Exception:
+                pass
+            del temp_dir
+            gc.collect()

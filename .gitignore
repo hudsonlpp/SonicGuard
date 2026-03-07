@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Gemini/Agent internal
+.gemini/
+
+# Audio files (downloaded during testing)
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+
+# Byte-compiled
+*.egg-info/
+dist/
+build/

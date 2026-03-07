@@ -1,0 +1,8 @@
+# SonicGuard — Plagiarism Detection Engine (DSP)
+# Zero dependências de IA/ML (sem torch, transformers, ou modelos neurais)
+
+librosa>=0.10.0
+numpy>=1.24.0
+scipy>=1.10.0
+yt-dlp>=2024.0
+soundfile>=0.12.0
