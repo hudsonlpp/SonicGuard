@@ -35,6 +35,15 @@ const metaDtw = document.getElementById('meta-dtw');
 const metaFramesA = document.getElementById('meta-frames-a');
 const metaFramesB = document.getElementById('meta-frames-b');
 
+// Legal Analysis
+const legalSection = document.getElementById('legal-analysis');
+const legalPattern = document.getElementById('legal-pattern');
+const legalSourceBadge = document.getElementById('legal-source-badge');
+const legalDescription = document.getElementById('legal-description');
+const legalArticlesList = document.getElementById('legal-articles-list');
+const legalRecommendation = document.getElementById('legal-recommendation-text');
+const legalRecommendationBox = document.getElementById('legal-recommendation-box');
+
 // ---------- Config ----------
 const API_URL = '/api/compare';
 const EXPECTED_DURATION = 45; // seconds
@@ -171,7 +180,7 @@ function validateInputs() {
     const sourceB = getSourceInput(sourceBInput, uploadBInput);
 
     if (!sourceA || !sourceB) {
-        return { valid: false, error: 'Preencha os dois campos — URL do YouTube ou arquivo de áudio.' };
+        return { valid: false, error: 'Preencha os dois campos — URL do YouTube ou arquivo de audio.' };
     }
 
     if (sourceA.type === 'url' && !isValidYouTubeUrl(sourceA.value)) {
@@ -339,6 +348,43 @@ function renderResults(data) {
     metaDtw.textContent = data.dtw_cost ? data.dtw_cost.toFixed(4) : '0';
     metaFramesA.textContent = data.frames_a || '0';
     metaFramesB.textContent = data.frames_b || '0';
+
+    // Legal Analysis
+    if (data.legal_analysis) {
+        legalSection.classList.remove('hidden');
+        legalPattern.textContent = data.legal_analysis.pattern_name || 'Análise Geral';
+
+        // Source Badge
+        const isGemini = data.legal_analysis.source === 'gemini';
+        legalSourceBadge.textContent = isGemini ? '🤖 Gemini Flash' : '📋 Regra Estática';
+        legalSourceBadge.className = `legal__badge ${isGemini ? 'legal__badge--gemini' : 'legal__badge--static'}`;
+
+        legalDescription.textContent = data.legal_analysis.analysis || '';
+
+        // Articles
+        legalArticlesList.innerHTML = '';
+        if (data.legal_analysis.articles && data.legal_analysis.articles.length > 0) {
+            data.legal_analysis.articles.forEach(art => {
+                const card = document.createElement('div');
+                card.className = 'legal__article-card';
+                card.innerHTML = `
+                    <span class="legal__article-ref">${art.reference}</span>
+                    <p class="legal__article-text">${art.text}</p>
+                `;
+                legalArticlesList.appendChild(card);
+            });
+        }
+
+        // Recommendation
+        if (data.legal_analysis.recommendation) {
+            legalRecommendationBox.classList.remove('hidden');
+            legalRecommendation.textContent = data.legal_analysis.recommendation;
+        } else {
+            legalRecommendationBox.classList.add('hidden');
+        }
+    } else {
+        legalSection.classList.add('hidden');
+    }
 }
 
 // ---------- Number Animation ----------
@@ -383,6 +429,10 @@ function resetForm() {
         document.getElementById(`bar-${dim}`).style.width = '0%';
         document.getElementById(`value-${dim}`).textContent = '0%';
     });
+
+    // Reset Legal
+    legalSection.classList.add('hidden');
+    legalArticlesList.innerHTML = '';
 
     btnCompare.disabled = false;
     showSection(sectionForm);

@@ -5,7 +5,7 @@ Define os schemas de request/response para validação automática.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 class CompareRequest(BaseModel):
@@ -30,11 +30,29 @@ class DimensionScore(BaseModel):
     weight: float
 
 
+class LegalArticle(BaseModel):
+    """Artigo da Lei citado na análise."""
+    reference: str
+    text: str
+
+
+class LegalAnalysis(BaseModel):
+    """Análise jurídica gerada pelo módulo legal."""
+    pattern: str = Field(..., description="sample | vocal | vibe | alta_geral | media | baixa")
+    pattern_name: str
+    severity: str = Field(..., description="alta | media | baixa")
+    articles: List[LegalArticle]
+    analysis: str
+    recommendation: str
+    source: str = Field(..., description="gemini | static")
+
+
 class CompareResponse(BaseModel):
     """Response com resultado da comparação multi-dimensional."""
     score: float = Field(..., description="Score geral 0.0–1.0")
     verdict: str = Field(..., description="alta_similaridade | media_similaridade | baixa_similaridade")
     breakdown: Dict[str, DimensionScore]
+    legal_analysis: Optional[LegalAnalysis] = None
     dtw_cost: float
     path_length: int
     frames_a: int

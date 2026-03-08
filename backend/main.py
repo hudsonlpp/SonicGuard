@@ -20,6 +20,8 @@ from schemas import CompareRequest, CompareResponse, HealthResponse, ErrorRespon
 from downloader import load_audio
 from dsp_engine import extract_features_combined
 from matcher import compare
+from legal import detectar_padrao, selecionar_artigos, gerar_analise_estatica, PADROES
+from legal_llm import gerar_analise_llm
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -95,10 +97,43 @@ async def compare_audios(request: CompareRequest):
 
         # ── Montar response ──
         data = result.to_dict()
+
+        # ── Análise Jurídica (Híbrido: regras + LLM + validação) ──
+        padrao = detectar_padrao(data["score"], data["breakdown"])
+        padrao_info = PADROES.get(padrao, PADROES["baixa"])
+        artigos = selecionar_artigos(padrao)
+
+        # Tentar Gemini Flash
+        texto_llm = gerar_analise_llm(
+            score=data["score"],
+            breakdown=data["breakdown"],
+            padrao=padrao,
+            padrao_nome=padrao_info["nome"],
+            veredicto=data["verdict"],
+            artigos=[{"referencia": a["referencia"], "texto": a["texto"]} for a in artigos],
+        )
+
+        if texto_llm:
+            legal_data = {
+                "pattern": padrao,
+                "pattern_name": padrao_info["nome"],
+                "severity": padrao_info["gravidade"],
+                "articles": [{"reference": a["referencia"], "text": a["texto"]} for a in artigos],
+                "analysis": texto_llm,
+                "recommendation": padrao_info["recomendacao"],
+                "source": "gemini",
+            }
+        else:
+            # Fallback: análise estática
+            legal_data = gerar_analise_estatica(data["score"], data["breakdown"], padrao)
+
+        elapsed = round(time.time() - start, 2)
+
         return CompareResponse(
             score=data["score"],
             verdict=data["verdict"],
             breakdown=data["breakdown"],
+            legal_analysis=legal_data,
             dtw_cost=data["dtw_cost"],
             path_length=data["path_length"],
             frames_a=data["frames_a"],

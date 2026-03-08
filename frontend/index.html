@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="SonicGuard — Detecção de plágio musical com análise multi-dimensional de áudio. Compare dois áudios e receba score, breakdown e veredicto." />
+  <meta name="description"
+    content="SonicGuard — Detecção de plágio musical com análise multi-dimensional de áudio. Compare dois áudios e receba score, breakdown e veredicto." />
   <title>SonicGuard — Detecção de Plágio Musical</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
 
   <!-- ============ HEADER ============ -->
@@ -30,7 +34,8 @@
     <!-- HERO + FORM -->
     <section id="section-form" class="section section--form">
       <div class="hero">
-        <h1 class="hero__title">Compare dois áudios.<br/><span class="hero__title-accent">Descubra a verdade.</span></h1>
+        <h1 class="hero__title">Compare dois áudios.<br /><span class="hero__title-accent">Descubra a verdade.</span>
+        </h1>
         <p class="hero__subtitle">Análise multi-dimensional com DSP: melodia, harmonia, ritmo e timbre.</p>
       </div>
 
@@ -42,13 +47,8 @@
               <span class="form__label-icon">🎵</span> Áudio Original
             </label>
             <div class="form__input-wrapper">
-              <input
-                type="text"
-                id="source-a"
-                class="form__input"
-                placeholder="Cole a URL do YouTube..."
-                autocomplete="off"
-              />
+              <input type="text" id="source-a" class="form__input" placeholder="Cole a URL do YouTube..."
+                autocomplete="off" />
             </div>
             <div class="form__divider">
               <span class="form__divider-text">ou</span>
@@ -66,13 +66,8 @@
               <span class="form__label-icon">🔍</span> Áudio Suspeito
             </label>
             <div class="form__input-wrapper">
-              <input
-                type="text"
-                id="source-b"
-                class="form__input"
-                placeholder="Cole a URL do YouTube..."
-                autocomplete="off"
-              />
+              <input type="text" id="source-b" class="form__input" placeholder="Cole a URL do YouTube..."
+                autocomplete="off" />
             </div>
             <div class="form__divider">
               <span class="form__divider-text">ou</span>
@@ -157,6 +152,15 @@
         </div>
       </div>
 
+      <!-- Scroll Hint -->
+      <div class="scroll-hint anim-bounce" id="scroll-hint">
+        <span class="scroll-hint__text">Role para ver a análise completa</span>
+        <svg class="scroll-hint__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+
       <!-- Breakdown Cards -->
       <div class="breakdown">
         <h2 class="breakdown__title">Análise por Dimensão</h2>
@@ -228,6 +232,36 @@
         <span class="meta__item">🎞 Frames: <span id="meta-frames-a">0</span> × <span id="meta-frames-b">0</span></span>
       </div>
 
+      <!-- Legal Analysis -->
+      <div id="legal-analysis" class="legal glass-card hidden">
+        <div class="legal__header">
+          <div class="legal__title-group">
+            <h2 class="legal__title">Parecer Jurídico</h2>
+            <span id="legal-pattern" class="legal__pattern"></span>
+          </div>
+          <span id="legal-source-badge" class="legal__badge"></span>
+        </div>
+
+        <div class="legal__content">
+          <div class="legal__analysis">
+            <h3 class="legal__sub-title">Análise Detalhada</h3>
+            <p id="legal-description" class="legal__text"></p>
+          </div>
+
+          <div class="legal__articles">
+            <h3 class="legal__sub-title">Fundamentação Legal (Lei 9.610/98)</h3>
+            <div id="legal-articles-list" class="legal__articles-grid">
+              <!-- Artigos serão inseridos aqui -->
+            </div>
+          </div>
+
+          <div id="legal-recommendation-box" class="legal__recommendation">
+            <h3 class="legal__sub-title">Recomendação</h3>
+            <p id="legal-recommendation-text" class="legal__text"></p>
+          </div>
+        </div>
+      </div>
+
       <!-- New Comparison -->
       <button type="button" id="btn-new" class="btn btn--secondary">
         <span class="btn__icon">🔄</span>
@@ -244,4 +278,5 @@
 
   <script type="module" src="/main.js"></script>
 </body>
+
 </html>
