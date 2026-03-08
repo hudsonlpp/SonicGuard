@@ -150,10 +150,24 @@ def _apply_oti(
 def _phase1_search(combined_a: np.ndarray, combined_b: np.ndarray):
     """
     Localiza a janela do possível plágio via Subsequence DTW.
+
+    Usa downsampling 2× para reduzir consumo de RAM:
+      10k×10k (~850 MiB) → 5k×5k (~212 MiB)
+
+    As coordenadas são escaladas de volta para a resolução original.
     Retorna (start_a, end_a, start_b, end_b).
     """
-    C = cdist(combined_a.T, combined_b.T, metric="cosine")
-    C = np.nan_to_num(C, nan=2.0, posinf=2.0, neginf=0.0)
+    # Downsample 2×: pega 1 a cada 2 frames
+    _DS = 2
+    ds_a = combined_a[:, ::_DS]
+    ds_b = combined_b[:, ::_DS]
+
+    C = cdist(ds_a.T, ds_b.T, metric="cosine").astype(np.float32)
+
+    del ds_a, ds_b
+    gc.collect()
+
+    np.nan_to_num(C, copy=False, nan=np.float32(2.0), posinf=np.float32(2.0), neginf=np.float32(0.0))
 
     D, wp = librosa.sequence.dtw(
         C=C,
@@ -162,8 +176,11 @@ def _phase1_search(combined_a: np.ndarray, combined_b: np.ndarray):
         subseq=True,
     )
 
-    start_a, start_b = int(wp[-1, 0]), int(wp[-1, 1])
-    end_a, end_b = int(wp[0, 0]), int(wp[0, 1])
+    # Escalando coordenadas de volta para resolução original
+    start_a = int(wp[-1, 0]) * _DS
+    start_b = int(wp[-1, 1]) * _DS
+    end_a = min(int(wp[0, 0]) * _DS, combined_a.shape[1] - 1)
+    end_b = min(int(wp[0, 1]) * _DS, combined_b.shape[1] - 1)
 
     del C, D, wp
     gc.collect()
@@ -198,8 +215,8 @@ def _phase2_validate_dimension(crop_a: np.ndarray, crop_b: np.ndarray):
     Fase 2 para UMA dimensão: Global DTW restrito no trecho isolado.
     Retorna (custo_total, path_length).
     """
-    C_sub = cdist(crop_a.T, crop_b.T, metric="cosine")
-    C_sub = np.nan_to_num(C_sub, nan=2.0, posinf=2.0, neginf=0.0)
+    C_sub = cdist(crop_a.T, crop_b.T, metric="cosine").astype(np.float32)
+    np.nan_to_num(C_sub, copy=False, nan=np.float32(2.0), posinf=np.float32(2.0), neginf=np.float32(0.0))
     C_sub = _apply_sakoe_chiba_band(C_sub, _SAKOE_CHIBA_FRACTION)
 
     D, wp = librosa.sequence.dtw(

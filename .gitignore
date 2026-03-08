@@ -4,6 +4,11 @@ __pycache__/
 *$py.class
 *.so
 
+# Node
+node_modules/
+*$py.class
+*.so
+
 # Virtual environments
 venv/
 .venv/

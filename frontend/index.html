@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SonicGuard — Detecção de plágio musical com análise multi-dimensional de áudio. Compare dois áudios e receba score, breakdown e veredicto." />
+  <title>SonicGuard — Detecção de Plágio Musical</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="header">
+    <div class="header__inner">
+      <a href="/" class="header__logo">
+        <span class="header__logo-icon">🛡️</span>
+        <span class="header__logo-text">Sonic<span class="header__logo-accent">Guard</span></span>
+      </a>
+      <p class="header__tagline">Detecção de Plágio Musical</p>
+    </div>
+  </header>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- HERO + FORM -->
+    <section id="section-form" class="section section--form">
+      <div class="hero">
+        <h1 class="hero__title">Compare dois áudios.<br/><span class="hero__title-accent">Descubra a verdade.</span></h1>
+        <p class="hero__subtitle">Análise multi-dimensional com DSP: melodia, harmonia, ritmo e timbre.</p>
+      </div>
+
+      <form id="compare-form" class="form glass-card">
+        <div class="form__grid">
+          <!-- Source A -->
+          <div class="form__group">
+            <label class="form__label" for="source-a">
+              <span class="form__label-icon">🎵</span> Áudio Original
+            </label>
+            <div class="form__input-wrapper">
+              <input
+                type="text"
+                id="source-a"
+                class="form__input"
+                placeholder="Cole a URL do YouTube..."
+                autocomplete="off"
+              />
+            </div>
+            <div class="form__divider">
+              <span class="form__divider-text">ou</span>
+            </div>
+            <label class="form__upload" id="upload-a-label" for="upload-a">
+              <span class="form__upload-icon">📁</span>
+              <span class="form__upload-text">Arraste ou clique para enviar arquivo</span>
+              <input type="file" id="upload-a" class="form__upload-input" accept="audio/*" />
+            </label>
+          </div>
+
+          <!-- Source B -->
+          <div class="form__group">
+            <label class="form__label" for="source-b">
+              <span class="form__label-icon">🔍</span> Áudio Suspeito
+            </label>
+            <div class="form__input-wrapper">
+              <input
+                type="text"
+                id="source-b"
+                class="form__input"
+                placeholder="Cole a URL do YouTube..."
+                autocomplete="off"
+              />
+            </div>
+            <div class="form__divider">
+              <span class="form__divider-text">ou</span>
+            </div>
+            <label class="form__upload" id="upload-b-label" for="upload-b">
+              <span class="form__upload-icon">📁</span>
+              <span class="form__upload-text">Arraste ou clique para enviar arquivo</span>
+              <input type="file" id="upload-b" class="form__upload-input" accept="audio/*" />
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-compare" class="btn btn--primary">
+          <span class="btn__icon">⚡</span>
+          <span class="btn__text">Comparar Áudios</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- LOADING STATE -->
+    <section id="section-loading" class="section section--loading hidden">
+      <div class="loading glass-card">
+        <div class="loading__waveform">
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+          <div class="loading__bar"></div>
+        </div>
+        <h2 class="loading__title">Analisando áudios...</h2>
+        <p class="loading__subtitle">Extraindo features e comparando dimensões musicais</p>
+        <div class="loading__progress">
+          <div class="loading__progress-bar" id="loading-progress-bar"></div>
+        </div>
+        <p class="loading__timer" id="loading-timer">0s</p>
+        <p class="loading__note">⏱ A análise leva em média 35-50 segundos</p>
+      </div>
+    </section>
+
+    <!-- ERROR STATE -->
+    <section id="section-error" class="section section--error hidden">
+      <div class="error glass-card">
+        <span class="error__icon">⚠️</span>
+        <h2 class="error__title">Algo deu errado</h2>
+        <p class="error__message" id="error-message">Erro desconhecido.</p>
+        <button type="button" id="btn-retry" class="btn btn--secondary">
+          <span class="btn__text">Tentar novamente</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="section-results" class="section section--results hidden">
+
+      <!-- Score Gauge -->
+      <div class="result-score glass-card">
+        <div class="gauge">
+          <svg class="gauge__svg" viewBox="0 0 200 200">
+            <circle class="gauge__track" cx="100" cy="100" r="85" />
+            <circle class="gauge__fill" id="gauge-fill" cx="100" cy="100" r="85" />
+          </svg>
+          <div class="gauge__center">
+            <span class="gauge__value" id="gauge-value">0%</span>
+            <span class="gauge__label">Similaridade</span>
+          </div>
+        </div>
+
+        <!-- Verdict Banner -->
+        <div class="verdict" id="verdict-banner">
+          <span class="verdict__icon" id="verdict-icon"></span>
+          <div class="verdict__text">
+            <span class="verdict__title" id="verdict-title"></span>
+            <span class="verdict__description" id="verdict-description"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Breakdown Cards -->
+      <div class="breakdown">
+        <h2 class="breakdown__title">Análise por Dimensão</h2>
+        <div class="breakdown__grid">
+          <div class="breakdown__card glass-card" data-dimension="melodia">
+            <div class="breakdown__header">
+              <span class="breakdown__emoji">🎵</span>
+              <div>
+                <span class="breakdown__name">Melodia</span>
+                <span class="breakdown__weight">Peso: 40%</span>
+              </div>
+            </div>
+            <div class="breakdown__bar-wrapper">
+              <div class="breakdown__bar" id="bar-melodia"></div>
+            </div>
+            <span class="breakdown__value" id="value-melodia">0%</span>
+          </div>
+
+          <div class="breakdown__card glass-card" data-dimension="harmonia">
+            <div class="breakdown__header">
+              <span class="breakdown__emoji">🎹</span>
+              <div>
+                <span class="breakdown__name">Harmonia</span>
+                <span class="breakdown__weight">Peso: 25%</span>
+              </div>
+            </div>
+            <div class="breakdown__bar-wrapper">
+              <div class="breakdown__bar" id="bar-harmonia"></div>
+            </div>
+            <span class="breakdown__value" id="value-harmonia">0%</span>
+          </div>
+
+          <div class="breakdown__card glass-card" data-dimension="ritmo">
+            <div class="breakdown__header">
+              <span class="breakdown__emoji">🥁</span>
+              <div>
+                <span class="breakdown__name">Ritmo</span>
+                <span class="breakdown__weight">Peso: 20%</span>
+              </div>
+            </div>
+            <div class="breakdown__bar-wrapper">
+              <div class="breakdown__bar" id="bar-ritmo"></div>
+            </div>
+            <span class="breakdown__value" id="value-ritmo">0%</span>
+          </div>
+
+          <div class="breakdown__card glass-card" data-dimension="timbre">
+            <div class="breakdown__header">
+              <span class="breakdown__emoji">🎸</span>
+              <div>
+                <span class="breakdown__name">Timbre</span>
+                <span class="breakdown__weight">Peso: 15%</span>
+              </div>
+            </div>
+            <div class="breakdown__bar-wrapper">
+              <div class="breakdown__bar" id="bar-timbre"></div>
+            </div>
+            <span class="breakdown__value" id="value-timbre">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meta Info -->
+      <div class="meta glass-card">
+        <span class="meta__item">⏱ <span id="meta-elapsed">0</span>s de processamento</span>
+        <span class="meta__sep">•</span>
+        <span class="meta__item">📊 DTW Cost: <span id="meta-dtw">0</span></span>
+        <span class="meta__sep">•</span>
+        <span class="meta__item">🎞 Frames: <span id="meta-frames-a">0</span> × <span id="meta-frames-b">0</span></span>
+      </div>
+
+      <!-- New Comparison -->
+      <button type="button" id="btn-new" class="btn btn--secondary">
+        <span class="btn__icon">🔄</span>
+        <span class="btn__text">Nova Comparação</span>
+      </button>
+    </section>
+
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <p class="footer__text">SonicGuard © 2026 — Detecção de plágio musical com DSP</p>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
