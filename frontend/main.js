@@ -2,6 +2,8 @@
 // SonicGuard — Main Application Logic
 // ============================================
 
+import { authState, openModal } from './auth.js';
+
 // ---------- DOM Elements ----------
 const sectionForm = document.getElementById('section-form');
 const sectionLoading = document.getElementById('section-loading');
@@ -201,6 +203,12 @@ async function compareAudios(sourceA, sourceB) {
 
     try {
         let response;
+        const headers = {};
+
+        // Add JWT Token if logged in
+        if (authState.isLoggedIn()) {
+            headers['Authorization'] = `Bearer ${authState.token}`;
+        }
 
         // If either source is a file, use FormData
         if (sourceA.type === 'file' || sourceB.type === 'file') {
@@ -218,14 +226,16 @@ async function compareAudios(sourceA, sourceB) {
 
             response = await fetch(API_URL, {
                 method: 'POST',
+                headers,
                 body: formData,
                 signal: controller.signal,
             });
         } else {
             // Both are URLs — send JSON
+            headers['Content-Type'] = 'application/json';
             response = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     source_a: sourceA.value,
                     source_b: sourceB.value,
@@ -237,6 +247,13 @@ async function compareAudios(sourceA, sourceB) {
         clearTimeout(timeout);
 
         if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('AUTH_REQUIRED');
+            }
+            if (response.status === 402) {
+                throw new Error('OUT_OF_CREDITS');
+            }
+
             let errMsg = `Erro ${response.status}`;
             try {
                 const errData = await response.json();
@@ -442,6 +459,12 @@ function resetForm() {
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // If not logged in, immediately ask for login instead of starting process
+    if (!authState.isLoggedIn()) {
+        openModal(document.getElementById('modal-login'));
+        return;
+    }
+
     const validation = validateInputs();
     if (!validation.valid) {
         alert(validation.error);
@@ -460,8 +483,32 @@ form.addEventListener('submit', async (e) => {
         stopTimer();
         renderResults(data);
         showSection(sectionResults);
+
+        // Backend should ideally return updated credits in response or we deduct one
+        // Since api_contract.md doesn't explicitly return new credits in /compare,
+        // we manually deduct 1 credit if > 0 for UX, or we could fetch user info.
+        if (authState.credits > 0) {
+            authState.updateCredits(authState.credits - 1);
+        }
+
     } catch (err) {
         stopTimer();
+        btnCompare.disabled = false;
+
+        // Handle auth errors gracefully
+        if (err.message === 'AUTH_REQUIRED') {
+            showSection(sectionForm);
+            openModal(document.getElementById('modal-login'));
+            authState.clearSession(); // Token might be expired
+            return;
+        }
+
+        if (err.message === 'OUT_OF_CREDITS') {
+            showSection(sectionForm);
+            openModal(document.getElementById('modal-credits'));
+            return;
+        }
+
         errorMessage.textContent = err.message || 'Erro ao conectar com o servidor. Verifique se o backend está rodando.';
         showSection(sectionError);
     }

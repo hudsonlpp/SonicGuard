@@ -12,10 +12,14 @@ O frontend deve exibir um loading state durante a request.
 import gc
 import time
 import traceback
+import asyncio
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
+# Core 
 from schemas import CompareRequest, CompareResponse, HealthResponse, ErrorResponse
 from downloader import load_audio
 from dsp_engine import extract_features_combined
@@ -23,9 +27,15 @@ from matcher import compare
 from legal import detectar_padrao, selecionar_artigos, gerar_analise_estatica, PADROES
 from legal_llm import gerar_analise_llm
 
+# Auth & Database
+import database, models, crud, auth, schemas_auth
+
+# Inicializa as tabelas do SQLite automaticamente
+models.Base.metadata.create_all(bind=database.engine)
+
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  APP
+#  APP & CONCURRENCY
 # ═════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(
@@ -43,9 +53,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Semáforo para limitar processamento concorrente do Motor DSP (evita crash por RAM na VPS)
+# Valor 1: Apenas 1 música processada por vez (Garante uso < 1GB RAM)
+dsp_semaphore = asyncio.Semaphore(1)
+
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  ENDPOINTS
+#  AUTH ENDPOINTS
+# ═════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/auth/register", response_model=schemas_auth.UserResponse)
+def register(user: schemas_auth.UserCreate, db: Session = Depends(database.get_db)):
+    """Cria uma nova conta na plataforma e deposita 2 créditos grátis."""
+    db_user = crud.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="E-mail já registrado")
+    
+    new_user = crud.create_user(db=db, user=user)
+    
+    # Montando a resposta explicitamente pro Pydantic ignorar a senha
+    return schemas_auth.UserResponse(
+        id=new_user.id,
+        email=new_user.email,
+        credits=crud.get_credits(db, new_user.id)
+    )
+
+@app.post("/api/auth/login", response_model=schemas_auth.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    """
+    Login padrão Oauth2 usando form-data (username e password).
+    Em nosso caso, username = email.
+    """
+    user = crud.get_user_by_email(db, email=form_data.username)
+    if not user or not crud.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciais inválidas. Verifique seu e-mail e senha.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Gera JWT 
+    access_token_expires = auth.timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  CORE ENDPOINTS
 # ═════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -57,41 +113,60 @@ async def health():
 @app.post(
     "/api/compare",
     response_model=CompareResponse,
-    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={
+        400: {"model": ErrorResponse}, 
+        401: {"model": ErrorResponse, "description": "Token inválido/ausente"},
+        402: {"model": ErrorResponse, "description": "Sem créditos"},
+        500: {"model": ErrorResponse}
+    },
 )
-async def compare_audios(request: CompareRequest):
+async def compare_audios(
+    request: CompareRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db)
+):
     """
-    Compara dois áudios via motor DSP v2 (Two-Pass DTW Multi-Dimensional).
+    [PROTECTED] Compara dois áudios via motor DSP v2.
+    Requer Header 'Authorization: Bearer <token>'.
+    Custa 1 crédito da carteira do usuário.
+    """
+    # ── 1. Paywall: Checa se o usuário tem saldo ──
+    creditos_atuais = crud.get_credits(db, current_user.id)
+    if creditos_atuais <= 0:
+        raise HTTPException(
+            status_code=402, 
+            detail="Você não possui mais créditos para análise. Faça um upgrade ou recarregue."
+        )
 
-    Aceita URLs do YouTube ou caminhos de arquivos locais.
-    Processamento síncrono — tempo médio: ~40 segundos.
-    """
     start = time.time()
 
-    # ── Validação básica ──
+    # ── 2. Validação básica ──
     if not request.source_a or not request.source_b:
         raise HTTPException(status_code=400, detail="source_a e source_b são obrigatórios.")
 
     try:
-        # ── Carregar Áudio A ──
-        signal_a, sr_a = load_audio(request.source_a)
+        # A trava de concorrência entra aqui. 
+        # Quem apertar o botão junto fica aguardando nesta linha até o anterior terminar.
+        async with dsp_semaphore:
+            # ── Carregar Áudio A ──
+            signal_a, sr_a = load_audio(request.source_a)
 
-        # ── Extrair Features A ──
-        features_a, combined_a = extract_features_combined(signal_a, sr=sr_a)
-        del signal_a
-        gc.collect()
+            # ── Extrair Features A ──
+            features_a, combined_a = extract_features_combined(signal_a, sr=sr_a)
+            del signal_a
+            gc.collect()
 
-        # ── Carregar Áudio B ──
-        signal_b, sr_b = load_audio(request.source_b)
+            # ── Carregar Áudio B ──
+            signal_b, sr_b = load_audio(request.source_b)
 
-        # ── Extrair Features B ──
-        features_b, combined_b = extract_features_combined(signal_b, sr=sr_b)
-        del signal_b
-        gc.collect()
+            # ── Extrair Features B ──
+            features_b, combined_b = extract_features_combined(signal_b, sr=sr_b)
+            del signal_b
+            gc.collect()
 
-        # ── Comparar via Two-Pass DTW ──
-        result = compare(features_a, features_b, combined_a, combined_b)
-        gc.collect()
+            # ── Comparar via Two-Pass DTW ──
+            result = compare(features_a, features_b, combined_a, combined_b)
+            gc.collect()
 
         elapsed = round(time.time() - start, 2)
 
@@ -126,6 +201,19 @@ async def compare_audios(request: CompareRequest):
         else:
             # Fallback: análise estática
             legal_data = gerar_analise_estatica(data["score"], data["breakdown"], padrao)
+
+        # ── 3. Lógica de Negócio Pós-Análise (Crédito + Histórico) ──
+        # Debita 1 crédito
+        crud.decrement_credit(db, current_user.id)
+        # Salva log da análise para o usuário
+        crud.log_analysis(
+            db=db, 
+            user_id=current_user.id, 
+            source_a=request.source_a, 
+            source_b=request.source_b,
+            score=data["score"], 
+            verdict=data["verdict"]
+        )
 
         elapsed = round(time.time() - start, 2)
 

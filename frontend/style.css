@@ -195,6 +195,46 @@ body::after {
   font-size: var(--font-sm);
   color: var(--text-muted);
   font-weight: 400;
+  margin-right: auto;
+  margin-left: var(--space-lg);
+  padding-left: var(--space-lg);
+  border-left: 1px solid var(--border-glass);
+}
+
+.header__auth {
+  display: flex;
+  align-items: center;
+}
+
+.auth-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.auth-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.auth-email {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.auth-credits {
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.auth-credits-value {
+  font-weight: 800;
+  color: #fbbf24;
 }
 
 /* ---------- MAIN ---------- */
@@ -392,6 +432,38 @@ body::after {
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
+}
+
+.btn--small {
+  padding: 0.6rem 1.2rem;
+  font-size: var(--font-sm);
+  border-radius: var(--radius-sm);
+  width: auto;
+}
+
+.btn--icon {
+  padding: 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.btn--icon:hover {
+  background: var(--bg-card-hover);
+  color: var(--color-high);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn--text {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+}
+
+.btn--text:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .btn--primary {
@@ -1044,6 +1116,118 @@ body::after {
 .footer__text {
   font-size: var(--font-sm);
   color: var(--text-muted);
+}
+
+/* ---------- MODALS ---------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 10, 26, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--transition-base), visibility var(--transition-base);
+  padding: var(--space-md);
+}
+
+.modal-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  display: flex !important;
+  /* Override generic hidden to keep flex centering for transition */
+  pointer-events: none;
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-2xl);
+  position: relative;
+  transform: translateY(0) scale(1);
+  transition: transform var(--transition-spring);
+}
+
+.modal-overlay.hidden .modal {
+  transform: translateY(20px) scale(0.95);
+}
+
+.modal__close {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  line-height: 1;
+  padding: 4px;
+}
+
+.modal__close:hover {
+  color: var(--text-primary);
+}
+
+.modal__title {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+}
+
+.modal__subtitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+  line-height: 1.5;
+}
+
+.modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.modal__form .btn--primary {
+  margin-top: var(--space-sm);
+}
+
+.form__error {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--color-high);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.modal__footer-text {
+  margin-top: var(--space-xl);
+  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.modal__footer-text a {
+  color: var(--accent-purple);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color var(--transition-fast);
+}
+
+.modal__footer-text a:hover {
+  color: var(--accent-blue);
+  text-decoration: underline;
 }
 
 /* ---------- RESPONSIVE ---------- */

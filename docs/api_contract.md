@@ -5,10 +5,50 @@
 http://localhost:8000/api
 ```
 
-## Endpoints
+## Endpoints de Autenticação
+
+### POST /api/auth/register
+Cria uma nova conta na plataforma e deposita 2 créditos grátis.
+
+**Request** (JSON):
+```json
+{
+  "email": "user@sonicguard.com",
+  "password": "my_secure_password"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "id": 1,
+  "email": "user@sonicguard.com",
+  "credits": 2
+}
+```
+
+### POST /api/auth/login
+Efetua login e retorna o Token JWT.
+
+**Request** (Form-Data `application/x-www-form-urlencoded`):
+- `username`: "user@sonicguard.com"
+- `password`: "my_secure_password"
+
+**Response** (200 OK):
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI... (JWT gigante) ...XVCJ9",
+  "token_type": "bearer"
+}
+```
+
+## Endpoints do Motor DSP
 
 ### POST /api/compare
-Compara dois áudios e retorna análise multi-dimensional de plágio + análise jurídica.
+**[PROTECTED]** Requer autenticação. Compara dois áudios e retorna análise multi-dimensional de plágio + análise jurídica. Custa **1 crédito**.
+
+**Headers:**
+- `Authorization: Bearer <access_token>`
 
 **Request** (JSON):
 ```json
@@ -51,6 +91,12 @@ Compara dois áudios e retorna análise multi-dimensional de plágio + análise 
   "source_b": "https://www.youtube.com/watch?v=yyy"
 }
 ```
+
+**Códigos de Erro (HTTP Status):**
+- `400 Bad Request` — URLs inválidas ou parâmetros faltando.
+- `401 Unauthorized` — Token ausente, inválido ou expirado. *Redirecionar para Login.*
+- `402 Payment Required` — Saldo de moedas acabou. *Exibir tela de Upgrade/Recarga.*
+- `500 Internal Server Error` — Erro fatal no servidor ou no motor.
 
 **Verdicts possíveis:**
 - `"alta_similaridade"` — score >= 85%
