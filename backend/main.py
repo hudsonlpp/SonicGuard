@@ -109,6 +109,12 @@ async def health():
     """Health check — verifica se a API está online."""
     return HealthResponse()
 
+@app.get("/api/me")
+def get_me(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    """Retorna os dados do usuário autenticado, incluindo saldo atualizado."""
+    creditos = crud.get_credits(db, current_user.id)
+    return {"email": current_user.email, "credits": creditos}
+
 
 @app.post(
     "/api/compare",
@@ -131,12 +137,12 @@ async def compare_audios(
     Custa 1 crédito da carteira do usuário.
     """
     # ── 1. Paywall: Checa se o usuário tem saldo ──
-    creditos_atuais = crud.get_credits(db, current_user.id)
-    if creditos_atuais <= 0:
-        raise HTTPException(
-            status_code=402, 
-            detail="Você não possui mais créditos para análise. Faça um upgrade ou recarregue."
-        )
+    # creditos_atuais = crud.get_credits(db, current_user.id)
+    # if creditos_atuais <= 0:
+    #     raise HTTPException(
+    #         status_code=402, 
+    #         detail="Você não possui mais créditos para análise. Faça um upgrade ou recarregue."
+    #     )
 
     start = time.time()
 
@@ -204,7 +210,7 @@ async def compare_audios(
 
         # ── 3. Lógica de Negócio Pós-Análise (Crédito + Histórico) ──
         # Debita 1 crédito
-        crud.decrement_credit(db, current_user.id)
+        # crud.decrement_credit(db, current_user.id)
         # Salva log da análise para o usuário
         crud.log_analysis(
             db=db, 

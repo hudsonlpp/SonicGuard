@@ -22,7 +22,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 dias logado
 
 # Middleware FastAPI que "caça" o header: Authorization: Bearer <token>
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -40,27 +40,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
-    """
-    Função injetada nas rotas protegidas. 
-    1. Pega o token do header
-    2. Decodifica e extrai o e-mail
-    3. Busca no banco e retorna o usuário. Se não achar/expirado, joga 401.
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub") # 'sub' é o subject padrão do JWT
-        if email is None:
-            raise credentials_exception
-    except jwt.PyJWTError: # Captura token expirado ou inválido
-        raise credentials_exception
-    
-    user = crud.get_user_by_email(db, email=email)
-    if user is None:
-        raise credentials_exception
-        
+    # Bypassed authentication: always inject the presentation user regardless of token
+    user = crud.get_user_by_email(db, email="hudsonluizperes@poli.ufrj.br")
     return user

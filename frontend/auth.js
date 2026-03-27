@@ -175,12 +175,13 @@ formLogin.addEventListener('submit', async (e) => {
         const data = await res.json();
         const token = data.access_token;
 
-        // TODO: Ideally the login endpoint should return user info/credits.
-        // Since api_contract.md says it only returns access_token, we will set a mock/default state 
-        // for email and credits until the user does a successful action or we add a /me endpoint.
-        // For now we'll set it to 0 credits, and it will update if /compare returns updated credits (if backend supports that).
-        // Or we assume 0 and wait for failure.
-        authState.setSession(token, loginEmail.value, 0);
+        const meRes = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (meRes.ok) {
+            const meData = await meRes.json();
+            authState.setSession(token, meData.email, meData.credits);
+        } else {
+            authState.setSession(token, loginEmail.value, 0);
+        }
 
         closeModal(modalLogin);
     } catch (err) {
@@ -236,4 +237,23 @@ formRegister.addEventListener('submit', async (e) => {
 });
 
 // Initialization
-updateHeaderUI();
+async function initAuth() {
+    if (authState.token) {
+        try {
+            const res = await fetch('/api/me', {
+                headers: { 'Authorization': `Bearer ${authState.token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                authState.setSession(authState.token, data.email, data.credits);
+            } else {
+                authState.clearSession();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    updateHeaderUI();
+}
+
+initAuth();

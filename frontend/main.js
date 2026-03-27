@@ -23,6 +23,7 @@ const btnNew = document.getElementById('btn-new');
 
 const loadingProgressBar = document.getElementById('loading-progress-bar');
 const loadingTimer = document.getElementById('loading-timer');
+const loadingSubtitle = document.querySelector('.loading__subtitle');
 const errorMessage = document.getElementById('error-message');
 
 // Results
@@ -49,7 +50,7 @@ const legalRecommendationBox = document.getElementById('legal-recommendation-box
 // ---------- Config ----------
 const API_URL = '/api/compare';
 const EXPECTED_DURATION = 45; // seconds
-const FETCH_TIMEOUT = 120000; // 120s
+const FETCH_TIMEOUT = 300000; // 300s (5 minutes)
 
 // ---------- State ----------
 let timerInterval = null;
@@ -146,9 +147,17 @@ function startTimer() {
     loadingTimer.textContent = '0s';
     loadingProgressBar.style.width = '0%';
 
+    if (loadingSubtitle) {
+        loadingSubtitle.textContent = 'Extraindo features e comparando dimensões musicais';
+    }
+
     timerInterval = setInterval(() => {
         elapsedSeconds++;
         loadingTimer.textContent = `${elapsedSeconds}s`;
+
+        if (elapsedSeconds > 30 && loadingSubtitle) {
+            loadingSubtitle.innerHTML = 'Você está na fila e o servidor está gerando a matriz DTW.<br/>Isso pode levar alguns instantes...';
+        }
 
         // Progress bar — reaches ~90% at expected duration, then slows
         const progress = Math.min(95, (elapsedSeconds / EXPECTED_DURATION) * 90);
@@ -268,7 +277,7 @@ async function compareAudios(sourceA, sourceB) {
     } catch (err) {
         clearTimeout(timeout);
         if (err.name === 'AbortError') {
-            throw new Error('A requisição excedeu o tempo limite (120s). Tente novamente.');
+            throw new Error('A requisição excedeu o tempo limite (5 minutos). Tente novamente ou volte mais tarde.');
         }
         throw err;
     }
@@ -460,10 +469,10 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     // If not logged in, immediately ask for login instead of starting process
-    if (!authState.isLoggedIn()) {
-        openModal(document.getElementById('modal-login'));
-        return;
-    }
+    // if (!authState.isLoggedIn()) {
+    //     openModal(document.getElementById('modal-login'));
+    //     return;
+    // }
 
     const validation = validateInputs();
     if (!validation.valid) {
@@ -488,7 +497,7 @@ form.addEventListener('submit', async (e) => {
         // Since api_contract.md doesn't explicitly return new credits in /compare,
         // we manually deduct 1 credit if > 0 for UX, or we could fetch user info.
         if (authState.credits > 0) {
-            authState.updateCredits(authState.credits - 1);
+            // authState.updateCredits(authState.credits - 1);
         }
 
     } catch (err) {
