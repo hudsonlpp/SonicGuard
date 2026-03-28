@@ -152,7 +152,7 @@ async def compare_audios(
     
     # ── 1. Detecção dinâmica do tipo de request (JSON ou MultiPart) ──
     # Para suportar tanto link do YouTube quanto Upload de arquivo no mesmo endpoint.
-    content_type = request.headers.get("Content-Type", "")
+    content_type = request.headers.get("Content-Type", "").lower()
     source_a = None
     source_b = None
     temp_files = [] # Para limpeza posterior
@@ -198,7 +198,10 @@ async def compare_audios(
 
     # ── 2. Validação básica ──
     if not source_a or not source_b:
-        raise HTTPException(status_code=400, detail="Dois áudios são necessários (URLs ou Arquivos).")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Dois áudios são necessários (Parametros ausentes ou incorretos). Tipo: {content_type}"
+        )
 
     try:
         # A trava de concorrência entra aqui. 
