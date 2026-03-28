@@ -21,7 +21,7 @@ import numpy as np
 
 # ── Constantes ──────────────────────────────────────────────────────────────
 DEFAULT_N_FFT = 2048       # Janela FFT padrão
-DEFAULT_HOP_LENGTH = 512   # Salto entre janelas
+DEFAULT_HOP_LENGTH = 1024  # DOBRADO (512 -> 1024) para 2x velocidade e 4x menos RAM no Render
 N_CHROMA = 12              # 12 classes de pitch (C, C#, D, ..., B)
 N_MFCC = 13               # 13 coeficientes MFCC (timbre/textura)
 TEMPO_WIN_LENGTH = 64      # Janela do tempograma (autocorrelação)

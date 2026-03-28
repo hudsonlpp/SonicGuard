@@ -203,6 +203,7 @@ async def compare_audios(
         # A trava de concorrência entra aqui. 
         # Quem apertar o botão junto fica aguardando nesta linha até o anterior terminar.
         async with dsp_semaphore:
+            print(f"DEBUG: Iniciando Extração A... {time.time() - start:.2f}s")
             # ── Carregar Áudio A ──
             signal_a, sr_a = load_audio(source_a)
             # TRUNCAR PARA DEMO (MAX 120 SEGUNDOS) PARA EVITAR TIMEOUT NO RENDER
@@ -213,6 +214,7 @@ async def compare_audios(
             del signal_a # Liberar RAM imediatamente
             gc.collect()
 
+            print(f"DEBUG: Iniciando Extração B... {time.time() - start:.2f}s")
             # ── Carregar Áudio B ──
             signal_b, sr_b = load_audio(source_b)
             # TRUNCAR PARA DEMO (MAX 120 SEGUNDOS) PARA EVITAR TIMEOUT NO RENDER
@@ -223,11 +225,13 @@ async def compare_audios(
             del signal_b # Liberar RAM imediatamente
             gc.collect()
 
-            # ── Comparar via Two-Pass DTW ──
+            print(f"DEBUG: Iniciando Comparação DSP... {time.time() - start:.2f}s")
+            # ── Comparação Principal (DTW) ──
             result = compare(features_a, features_b, combined_a, combined_b)
             gc.collect()
 
         elapsed = round(time.time() - start, 2)
+        print(f"DEBUG: DSP Concluído em {elapsed}s. Verdict: {result.verdict}")
 
         # ── Montar response ──
         data = result.to_dict()

@@ -163,6 +163,7 @@ def gerar_analise_llm(
         veredicto=veredicto,
     )
 
+    print(f"DEBUG: Enviando prompt ao Gemini Flash... ({_MODEL_NAME})")
     try:
         response = model.generate_content(prompt)
         texto = response.text.strip()
