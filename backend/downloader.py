@@ -48,9 +48,9 @@ def _download_from_youtube(url: str, output_dir: str) -> str:
     
     # Lista de clientes para tentar em sequência (Bypass agressivo)
     clients = [
-        ["web"],
         ["ios"],
         ["android"],
+        ["web"],
         ["mweb"],
         ["tv", "web"]
     ]
@@ -58,13 +58,14 @@ def _download_from_youtube(url: str, output_dir: str) -> str:
     last_error = None
     for client_list in clients:
         ydl_opts = {
-            "format": "bestaudio/best",
+            "format": "worstaudio/worst", # DOWNLOAD RELÂMPAGO (qualidade baixa é suficiente para DSP)
             "outtmpl": output_template,
+            "socket_timeout": 15, # Timeout rápido por tentativa
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": "wav",
-                    "preferredquality": "192",
+                    "preferredquality": "128", # Menor qualidade = mais rápido
                 }
             ],
             "quiet": True,

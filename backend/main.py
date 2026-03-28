@@ -209,18 +209,22 @@ async def compare_audios(
         async with dsp_semaphore:
             # ── Carregar Áudio A ──
             signal_a, sr_a = load_audio(source_a)
+            # TRUNCAR PARA DEMO (MAX 120 SEGUNDOS) PARA EVITAR TIMEOUT NO RENDER
+            signal_a = signal_a[:sr_a * 120]
 
             # ── Extrair Features A ──
             features_a, combined_a = extract_features_combined(signal_a, sr=sr_a)
-            del signal_a
+            del signal_a # Liberar RAM imediatamente
             gc.collect()
 
             # ── Carregar Áudio B ──
             signal_b, sr_b = load_audio(source_b)
+            # TRUNCAR PARA DEMO (MAX 120 SEGUNDOS) PARA EVITAR TIMEOUT NO RENDER
+            signal_b = signal_b[:sr_b * 120]
 
             # ── Extrair Features B ──
             features_b, combined_b = extract_features_combined(signal_b, sr=sr_b)
-            del signal_b
+            del signal_b # Liberar RAM imediatamente
             gc.collect()
 
             # ── Comparar via Two-Pass DTW ──
