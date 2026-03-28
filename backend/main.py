@@ -150,57 +150,53 @@ async def compare_audios(
 
     start = time.time()
     
-    # ── 1. Detecção dinâmica do tipo de request (JSON ou MultiPart) ──
-    # Para suportar tanto link do YouTube quanto Upload de arquivo no mesmo endpoint.
-    content_type = request.headers.get("Content-Type", "").lower()
+    # ── 1. Super-Parser Resiliente (JSON + MultiPart) ──
+    # Tenta extrair os dados de qualquer fonte possível para evitar erros de cabeçalho.
     source_a = None
     source_b = None
-    temp_files = [] # Para limpeza posterior
+    temp_files = []
 
     try:
-        if "application/json" in content_type:
-            # Caso links do YouTube via JSON
+        # Tenta JSON primeiro (mais comum para YouTube)
+        if "application/json" in request.headers.get("Content-Type", "").lower():
             data = await request.json()
             source_a = data.get("source_a")
             source_b = data.get("source_b")
-        else:
-            # Caso upload de arquivos ou campos de form
+        
+        # Se não achou no JSON, ou se for Multipart, tenta Form
+        if not source_a or not source_b:
             form = await request.form()
             
-            # Checa se veio arquivo no Slot A
-            file_a = form.get("file_a")
-            if file_a and isinstance(file_a, UploadFile) and file_a.filename:
+            # Prioridade para Arquivos reais
+            f_a = form.get("file_a")
+            if f_a and hasattr(f_a, "filename") and f_a.filename:
                 tmp_dir = tempfile.mkdtemp(prefix="sg_up_a_")
-                ext = os.path.splitext(file_a.filename)[1] or ".wav"
-                tmp_path = os.path.join(tmp_dir, f"audio_a{ext}")
-                with open(tmp_path, "wb") as buffer:
-                    shutil.copyfileobj(file_a.file, buffer)
+                tmp_path = os.path.join(tmp_dir, f"audio_a{os.path.splitext(f_a.filename)[1] or '.wav'}")
+                with open(tmp_path, "wb") as buf:
+                    shutil.copyfileobj(f_a.file, buf)
                 source_a = tmp_path
                 temp_files.append(tmp_dir)
             else:
-                source_a = form.get("source_a")
+                source_a = source_a or form.get("source_a")
 
-            # Checa se veio arquivo no Slot B
-            file_b = form.get("file_b")
-            if file_b and isinstance(file_b, UploadFile) and file_b.filename:
+            f_b = form.get("file_b")
+            if f_b and hasattr(f_b, "filename") and f_b.filename:
                 tmp_dir = tempfile.mkdtemp(prefix="sg_up_b_")
-                ext = os.path.splitext(file_b.filename)[1] or ".wav"
-                tmp_path = os.path.join(tmp_dir, f"audio_b{ext}")
-                with open(tmp_path, "wb") as buffer:
-                    shutil.copyfileobj(file_b.file, buffer)
+                tmp_path = os.path.join(tmp_dir, f"audio_b{os.path.splitext(f_b.filename)[1] or '.wav'}")
+                with open(tmp_path, "wb") as buf:
+                    shutil.copyfileobj(f_b.file, buf)
                 source_b = tmp_path
                 temp_files.append(tmp_dir)
             else:
-                source_b = form.get("source_b")
+                source_b = source_b or form.get("source_b")
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao processar corpo da requisição: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Falha na leitura dos dados: {str(e)}")
 
-    # ── 2. Validação básica ──
     if not source_a or not source_b:
         raise HTTPException(
             status_code=400, 
-            detail=f"Dois áudios são necessários (Parametros ausentes ou incorretos). Tipo: {content_type}"
+            detail="Dois áudios são necessários (Parametros ausentes ou incorretos)."
         )
 
     try:
