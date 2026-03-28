@@ -14,12 +14,16 @@ import time
 import traceback
 import asyncio
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 # Core 
+import os
+import shutil
+import tempfile
+from typing import Optional
 from schemas import CompareRequest, CompareResponse, HealthResponse, ErrorResponse
 from downloader import load_audio
 from dsp_engine import extract_features_combined
@@ -127,7 +131,7 @@ def get_me(current_user: models.User = Depends(auth.get_current_user), db: Sessi
     },
 )
 async def compare_audios(
-    request: CompareRequest,
+    request: Request,
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(database.get_db)
 ):
@@ -145,17 +149,63 @@ async def compare_audios(
     #     )
 
     start = time.time()
+    
+    # ── 1. Detecção dinâmica do tipo de request (JSON ou MultiPart) ──
+    # Para suportar tanto link do YouTube quanto Upload de arquivo no mesmo endpoint.
+    content_type = request.headers.get("Content-Type", "")
+    source_a = None
+    source_b = None
+    temp_files = [] # Para limpeza posterior
+
+    try:
+        if "application/json" in content_type:
+            # Caso links do YouTube via JSON
+            data = await request.json()
+            source_a = data.get("source_a")
+            source_b = data.get("source_b")
+        else:
+            # Caso upload de arquivos ou campos de form
+            form = await request.form()
+            
+            # Checa se veio arquivo no Slot A
+            file_a = form.get("file_a")
+            if file_a and isinstance(file_a, UploadFile) and file_a.filename:
+                tmp_dir = tempfile.mkdtemp(prefix="sg_up_a_")
+                ext = os.path.splitext(file_a.filename)[1] or ".wav"
+                tmp_path = os.path.join(tmp_dir, f"audio_a{ext}")
+                with open(tmp_path, "wb") as buffer:
+                    shutil.copyfileobj(file_a.file, buffer)
+                source_a = tmp_path
+                temp_files.append(tmp_dir)
+            else:
+                source_a = form.get("source_a")
+
+            # Checa se veio arquivo no Slot B
+            file_b = form.get("file_b")
+            if file_b and isinstance(file_b, UploadFile) and file_b.filename:
+                tmp_dir = tempfile.mkdtemp(prefix="sg_up_b_")
+                ext = os.path.splitext(file_b.filename)[1] or ".wav"
+                tmp_path = os.path.join(tmp_dir, f"audio_b{ext}")
+                with open(tmp_path, "wb") as buffer:
+                    shutil.copyfileobj(file_b.file, buffer)
+                source_b = tmp_path
+                temp_files.append(tmp_dir)
+            else:
+                source_b = form.get("source_b")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar corpo da requisição: {str(e)}")
 
     # ── 2. Validação básica ──
-    if not request.source_a or not request.source_b:
-        raise HTTPException(status_code=400, detail="source_a e source_b são obrigatórios.")
+    if not source_a or not source_b:
+        raise HTTPException(status_code=400, detail="Dois áudios são necessários (URLs ou Arquivos).")
 
     try:
         # A trava de concorrência entra aqui. 
         # Quem apertar o botão junto fica aguardando nesta linha até o anterior terminar.
         async with dsp_semaphore:
             # ── Carregar Áudio A ──
-            signal_a, sr_a = load_audio(request.source_a)
+            signal_a, sr_a = load_audio(source_a)
 
             # ── Extrair Features A ──
             features_a, combined_a = extract_features_combined(signal_a, sr=sr_a)
@@ -163,7 +213,7 @@ async def compare_audios(
             gc.collect()
 
             # ── Carregar Áudio B ──
-            signal_b, sr_b = load_audio(request.source_b)
+            signal_b, sr_b = load_audio(source_b)
 
             # ── Extrair Features B ──
             features_b, combined_b = extract_features_combined(signal_b, sr=sr_b)

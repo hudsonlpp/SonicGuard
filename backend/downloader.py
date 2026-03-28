@@ -44,24 +44,55 @@ def _download_from_youtube(url: str, output_dir: str) -> str:
         )
 
     output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
+    cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+    
+    # Lista de clientes para tentar em sequência (Bypass agressivo)
+    clients = [
+        ["web"],
+        ["ios"],
+        ["android"],
+        ["mweb"],
+        ["tv", "web"]
+    ]
 
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_template,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",
-                "preferredquality": "192",
+    last_error = None
+    for client_list in clients:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": output_template,
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "wav",
+                    "preferredquality": "192",
+                }
+            ],
+            "quiet": True,
+            "no_warnings": True,
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "referer": "https://www.youtube.com/",
+            "nocheckcertificate": True,
+            "cookiefile": cookie_path if os.path.exists(cookie_path) else None,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": client_list,
+                    "skip": ["dash", "hls"]
+                }
             }
-        ],
-        "quiet": True,
-        "no_warnings": True,
-    }
+        }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        video_id = info.get("id", "audio")
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                video_id = info.get("id", "audio")
+                # Se chegou aqui, funcionou!
+                break
+        except Exception as e:
+            last_error = e
+            continue
+    else:
+        # Se saiu do loop sem o break, todos falharam
+        raise RuntimeError(f"Download falhou após tentar múltiplos métodos. Erro final: {last_error}")
 
     wav_path = os.path.join(output_dir, f"{video_id}.wav")
 
