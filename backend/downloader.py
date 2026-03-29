@@ -44,7 +44,8 @@ def _download_from_youtube(url: str, output_dir: str) -> str:
         )
 
     output_template = os.path.join(output_dir, "%(id)s.%(ext)s")
-    cookie_path = os.path.join(os.path.dirname(__file__), "cookies.txt")
+    # Resolve caminho absoluto pro cookies.txt (mesma pasta que este script no Docker)
+    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
     
     # Lista de clientes para tentar em sequência (Bypass agressivo)
     clients = [
