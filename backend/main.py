@@ -272,8 +272,8 @@ async def compare_audios(
         crud.log_analysis(
             db=db, 
             user_id=current_user.id, 
-            source_a=request.source_a, 
-            source_b=request.source_b,
+            source_a=str(source_a),
+            source_b=str(source_b),
             score=data["score"], 
             verdict=data["verdict"]
         )

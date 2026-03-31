@@ -2,8 +2,12 @@
 // SonicGuard — Auth & Credits Logic
 // ============================================
 
-const API_LOGIN = '/api/auth/login';
-const API_REGISTER = '/api/auth/register';
+const IS_PROD    = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+const NGROK_URL  = 'https://moriah-uncapacious-tawny.ngrok-free.dev';
+const API_BASE   = IS_PROD ? NGROK_URL : '';
+const API_LOGIN    = `${API_BASE}/api/auth/login`;
+const API_REGISTER = `${API_BASE}/api/auth/register`;
+const API_ME       = `${API_BASE}/api/me`;
 
 // ---------- DOM Elements ----------
 // Header
@@ -175,7 +179,7 @@ formLogin.addEventListener('submit', async (e) => {
         const data = await res.json();
         const token = data.access_token;
 
-        const meRes = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        const meRes = await fetch(API_ME, { headers: { 'Authorization': `Bearer ${token}` } });
         if (meRes.ok) {
             const meData = await meRes.json();
             authState.setSession(token, meData.email, meData.credits);
@@ -240,7 +244,7 @@ formRegister.addEventListener('submit', async (e) => {
 async function initAuth() {
     if (authState.token) {
         try {
-            const res = await fetch('/api/me', {
+            const res = await fetch(API_ME, {
                 headers: { 'Authorization': `Bearer ${authState.token}` }
             });
             if (res.ok) {

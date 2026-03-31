@@ -48,7 +48,13 @@ const legalRecommendation = document.getElementById('legal-recommendation-text')
 const legalRecommendationBox = document.getElementById('legal-recommendation-box');
 
 // ---------- Config ----------
-const API_URL = '/api/compare';
+// Em produção (Vercel), aponta direto pro túnel ngrok do backend.
+// Em desenvolvimento local, usa o proxy do Vite (/api → localhost:8000).
+const IS_PROD = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+const NGROK_URL = 'https://moriah-uncapacious-tawny.ngrok-free.dev';
+const API_BASE  = IS_PROD ? NGROK_URL : '';
+const API_URL   = `${API_BASE}/api/compare`;
+const AUTH_BASE = `${API_BASE}/api/auth`;
 const EXPECTED_DURATION = 45; // seconds
 const FETCH_TIMEOUT = 300000; // 300s (5 minutes)
 

@@ -5,8 +5,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'https://moriah-uncapacious-tawny.ngrok-free.dev',
         changeOrigin: true,
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+        },
       },
     },
   },
